@@ -1,12 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SilafHotelManagementSystem.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace SilafHotelManagementSystem.Models
 {
-    internal class Guest
+    public class Guest
     {
+        [Key]
+        public int GuestId { get; set; }
+
+        [Required]
+        [MaxLength(100)]
+        public string Name { get; set; }
+
+        // Navigation properties
+        public ICollection<Booking>? Bookings { get; set; }
+        public ICollection<Review>? Reviews { get; set; }
     }
 }

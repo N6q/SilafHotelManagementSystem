@@ -1,12 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SilafHotelManagementSystem.Models;
 
 namespace SilafHotelManagementSystem.Repositories.Interfaces
 {
-    internal interface IGuestRepository
+    public interface IGuestRepository
     {
+        Task<List<Guest>> GetAllAsync();
+        Task<Guest?> GetByIdAsync(int id);
+        Task AddAsync(Guest guest);
+        Task UpdateAsync(Guest guest);
+        Task DeleteAsync(int id);
     }
 }
