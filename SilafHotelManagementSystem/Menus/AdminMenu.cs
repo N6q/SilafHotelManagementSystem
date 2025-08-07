@@ -3,6 +3,8 @@ using SilafHotelManagementSystem.Repositories;
 using SilafHotelManagementSystem.Repositories.Interfaces;
 using SilafHotelManagementSystem.Services.Interfaces;
 using System;
+using System.Diagnostics.Metrics;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SilafHotelManagementSystem.Menus
 {
@@ -50,7 +52,51 @@ namespace SilafHotelManagementSystem.Menus
                     switch (choice)
                     {
                         case "1":
-                            await AddRoom();
+                            Console.Write("Enter Room Number: ");
+                            int number = int.Parse(Console.ReadLine());
+
+                            Console.Write("Enter Daily Rate: ");
+                            double rate = double.Parse(Console.ReadLine());
+
+                            if (_useFileMode)
+                            {
+                                var rooms = _roomFileRepo.GetAll();
+                                if (rooms.Any(r => r.RoomNumber == number))
+                                {
+                                    Console.WriteLine("❌ Room number already exists.");
+                                    break;
+                                }
+
+                                var room = new Room
+                                {
+                                    RoomId = rooms.Count > 0 ? rooms.Max(r => r.RoomId) + 1 : 1,
+                                    RoomNumber = number,
+                                    DailyRate = rate,
+                                    IsReserved = false
+                                };
+
+                                _roomFileRepo.Add(room);
+                                Console.WriteLine("✅ Room added (file mode).");
+                            }
+                            else
+                            {
+                                var rooms = await _hotelService.GetAllRoomsAsync();
+                                if (rooms.Any(r => r.RoomNumber == number))
+                                {
+                                    Console.WriteLine("❌ Room number already exists.");
+                                    break;
+                                }
+
+                                var room = new Room
+                                {
+                                    RoomNumber = number,
+                                    DailyRate = rate,
+                                    IsReserved = false
+                                };
+
+                                await _hotelService.AddRoomAsync(room);
+                                Console.WriteLine("✅ Room added (database).");
+                            }
                             break;
 
                         case "2":
