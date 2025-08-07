@@ -1,3 +1,4 @@
+using SilafHotelManagementSystem.Data;
 using SilafHotelManagementSystem.Models;
 using SilafHotelManagementSystem.Repositories;
 using SilafHotelManagementSystem.Repositories.Interfaces;
@@ -42,6 +43,8 @@ namespace SilafHotelManagementSystem.Menus
                 Console.WriteLine("4. Cancel a Booking");
                 Console.WriteLine("5. Find Guest by Name");
                 Console.WriteLine("6. Show Highest-Paying Guest");
+                Console.WriteLine("7. Add Review");
+                Console.WriteLine("8. View All Reviews");
                 Console.WriteLine("0. Exit");
                 Console.Write("Select an option: ");
 
@@ -52,51 +55,7 @@ namespace SilafHotelManagementSystem.Menus
                     switch (choice)
                     {
                         case "1":
-                            Console.Write("Enter Room Number: ");
-                            int number = int.Parse(Console.ReadLine());
-
-                            Console.Write("Enter Daily Rate: ");
-                            double rate = double.Parse(Console.ReadLine());
-
-                            if (_useFileMode)
-                            {
-                                var rooms = _roomFileRepo.GetAll();
-                                if (rooms.Any(r => r.RoomNumber == number))
-                                {
-                                    Console.WriteLine("❌ Room number already exists.");
-                                    break;
-                                }
-
-                                var room = new Room
-                                {
-                                    RoomId = rooms.Count > 0 ? rooms.Max(r => r.RoomId) + 1 : 1,
-                                    RoomNumber = number,
-                                    DailyRate = rate,
-                                    IsReserved = false
-                                };
-
-                                _roomFileRepo.Add(room);
-                                Console.WriteLine("✅ Room added (file mode).");
-                            }
-                            else
-                            {
-                                var rooms = await _hotelService.GetAllRoomsAsync();
-                                if (rooms.Any(r => r.RoomNumber == number))
-                                {
-                                    Console.WriteLine("❌ Room number already exists.");
-                                    break;
-                                }
-
-                                var room = new Room
-                                {
-                                    RoomNumber = number,
-                                    DailyRate = rate,
-                                    IsReserved = false
-                                };
-
-                                await _hotelService.AddRoomAsync(room);
-                                Console.WriteLine("✅ Room added (database).");
-                            }
+                           await AddRoom();
                             break;
 
                         case "2":
@@ -114,6 +73,15 @@ namespace SilafHotelManagementSystem.Menus
                         case "6":
                             await ShowTopGuest();
                             break;
+                        case "7":
+                            await AddReview();
+                            break;
+
+                        case "8":
+                            await ViewAllReviews();
+                            break;
+
+
                         case "0":
                             Console.WriteLine("Exiting...");
                             return;
@@ -184,15 +152,15 @@ namespace SilafHotelManagementSystem.Menus
             Console.Write("Enter Guest Name: ");
             string name = Console.ReadLine();
 
-            Console.Write("Enter Room ID: ");
-            int roomId = int.Parse(Console.ReadLine());
+            Console.Write("Enter Room Number: ");
+            int roomNumber = int.Parse(Console.ReadLine());
 
             Console.Write("Enter Number of Nights: ");
             int nights = int.Parse(Console.ReadLine());
 
             if (_useFileMode)
             {
-                var room = _roomFileRepo.GetById(roomId);
+                var room = _roomFileRepo.GetAll().FirstOrDefault(r => r.RoomNumber == roomNumber);
                 if (room == null || room.IsReserved)
                 {
                     Console.WriteLine("❌ Room is not available.");
@@ -225,7 +193,15 @@ namespace SilafHotelManagementSystem.Menus
             }
             else
             {
-                await _hotelService.ReserveRoomAsync(name, roomId, nights);
+                var rooms = await _hotelService.GetAllRoomsAsync();
+                var room = rooms.FirstOrDefault(r => r.RoomNumber == roomNumber);
+                if (room == null || room.IsReserved)
+                {
+                    Console.WriteLine("❌ Room is not available.");
+                    return;
+                }
+
+                await _hotelService.ReserveRoomAsync(name, room.RoomId, nights);
                 Console.WriteLine("✅ Reservation successful (database).");
             }
         }
@@ -321,5 +297,77 @@ namespace SilafHotelManagementSystem.Menus
                     Console.WriteLine("❌ No guests found.");
             }
         }
+        private async Task AddReview()
+        {
+            Console.Write("Enter Guest ID: ");
+            int guestId = int.Parse(Console.ReadLine());
+
+            Console.Write("Enter Room ID: ");
+            int roomId = int.Parse(Console.ReadLine());
+
+            Console.Write("Enter your review comment: ");
+            string comment = Console.ReadLine();
+
+            Console.Write("Enter rating (1 to 5): ");
+            int rating = int.Parse(Console.ReadLine());
+
+            var review = new Review
+            {
+                GuestId = guestId,
+                RoomId = roomId,
+                Comment = comment,
+                Rating = rating
+            };
+
+            if (_useFileMode)
+            {
+                var reviews = FileContext.LoadReviews();
+                review.ReviewId = reviews.Count > 0 ? reviews.Max(r => r.ReviewId) + 1 : 1;
+                reviews.Add(review);
+                FileContext.SaveReviews(reviews);
+                Console.WriteLine("✅ Review added (file mode).");
+            }
+            else
+            {
+                using var context = new SilafHotelDbContext();
+                context.Reviews.Add(review);
+                await context.SaveChangesAsync();
+                Console.WriteLine("✅ Review added (database).");
+            }
+        }
+        private async Task ViewAllReviews()
+        {
+            Console.WriteLine("--- All Reviews ---");
+
+            if (_useFileMode)
+            {
+                var reviews = FileContext.LoadReviews();
+                var guests = _guestFileRepo.GetAll();
+                var rooms = _roomFileRepo.GetAll();
+
+                foreach (var r in reviews)
+                {
+                    var guestName = guests.FirstOrDefault(g => g.GuestId == r.GuestId)?.Name ?? "Unknown";
+                    var roomNum = rooms.FirstOrDefault(room => room.RoomId == r.RoomId)?.RoomNumber ?? 0;
+                    Console.WriteLine($"Guest: {guestName}, Room #{roomNum}, Rating: {r.Rating}, Comment: {r.Comment}");
+                }
+            }
+            else
+            {
+                using var context = new SilafHotelDbContext();
+                var reviews = context.Reviews.ToList();
+                var guests = context.Guests.ToList();
+                var rooms = context.Rooms.ToList();
+
+                foreach (var r in reviews)
+                {
+                    var guestName = guests.FirstOrDefault(g => g.GuestId == r.GuestId)?.Name ?? "Unknown";
+                    var roomNum = rooms.FirstOrDefault(room => room.RoomId == r.RoomId)?.RoomNumber ?? 0;
+                    Console.WriteLine($"Guest: {guestName}, Room #{roomNum}, Rating: {r.Rating}, Comment: {r.Comment}");
+                }
+            }
+        }
+
+
     }
 }
