@@ -2,9 +2,14 @@
 using SilafHotelManagementSystem.Data;
 using SilafHotelManagementSystem.Models;
 using SilafHotelManagementSystem.Repositories.Interfaces;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace SilafHotelManagementSystem.Repositories.Implementations
 {
+    /// <summary>
+    /// EF Core repository for Guest entities (synchronous).
+    /// </summary>
     public class GuestRepository : IGuestRepository
     {
         private readonly SilafHotelDbContext _context;
@@ -14,35 +19,42 @@ namespace SilafHotelManagementSystem.Repositories.Implementations
             _context = context;
         }
 
-        public async Task<List<Guest>> GetAllAsync()
+        /// <summary>Return all guests (read-only).</summary>
+        public List<Guest> GetAll()
         {
-            return await _context.Guests.ToListAsync();
+            return _context.Guests
+                           .AsNoTracking()
+                           .ToList();
         }
 
-        public async Task<Guest?> GetByIdAsync(int id)
+        /// <summary>Find a guest by primary key; null if not found.</summary>
+        public Guest? GetById(int id)
         {
-            return await _context.Guests.FindAsync(id);
+            return _context.Guests.Find(id);
         }
 
-        public async Task AddAsync(Guest guest)
+        /// <summary>Insert a new guest and save changes.</summary>
+        public void Add(Guest guest)
         {
             _context.Guests.Add(guest);
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
         }
 
-        public async Task UpdateAsync(Guest guest)
+        /// <summary>Update an existing guest and save changes.</summary>
+        public void Update(Guest guest)
         {
             _context.Guests.Update(guest);
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
         }
 
-        public async Task DeleteAsync(int id)
+        /// <summary>Delete a guest by id (no-op if not found).</summary>
+        public void Delete(int id)
         {
-            var guest = await _context.Guests.FindAsync(id);
+            var guest = _context.Guests.Find(id);
             if (guest != null)
             {
                 _context.Guests.Remove(guest);
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
             }
         }
     }

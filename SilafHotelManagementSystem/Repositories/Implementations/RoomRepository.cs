@@ -1,11 +1,15 @@
-﻿
-using SilafHotelManagementSystem.Repositories.Interfaces;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SilafHotelManagementSystem.Data;
 using SilafHotelManagementSystem.Models;
+using SilafHotelManagementSystem.Repositories.Interfaces;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace SilafHotelManagementSystem.Repositories.Implementations
 {
+    /// <summary>
+    /// EF Core repository for Room entities (synchronous).
+    /// </summary>
     public class RoomRepository : IRoomRepository
     {
         private readonly SilafHotelDbContext _context;
@@ -15,35 +19,52 @@ namespace SilafHotelManagementSystem.Repositories.Implementations
             _context = context;
         }
 
-        public async Task<List<Room>> GetAllAsync()
+        /// <summary>
+        /// Return all rooms (read-only, no tracking).
+        /// </summary>
+        public List<Room> GetAll()
         {
-            return await _context.Rooms.ToListAsync();
+            return _context.Rooms
+                           .AsNoTracking()
+                           .ToList();          // <-- sync ToList (no await)
         }
 
-        public async Task<Room?> GetByIdAsync(int id)
+        /// <summary>
+        /// Find a room by primary key; null if not found.
+        /// </summary>
+        public Room? GetById(int id)
         {
-            return await _context.Rooms.FindAsync(id);
+            return _context.Rooms.Find(id);       // <-- sync Find
         }
 
-        public async Task AddAsync(Room room)
+        /// <summary>
+        /// Insert a new room and save.
+        /// </summary>
+        public void Add(Room room)
         {
             _context.Rooms.Add(room);
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();               // <-- sync SaveChanges
         }
 
-        public async Task UpdateAsync(Room room)
+        /// <summary>
+        /// Update existing room and save.
+        /// </summary>
+        public void Update(Room room)
         {
             _context.Rooms.Update(room);
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
         }
 
-        public async Task DeleteAsync(int id)
+        /// <summary>
+        /// Delete by id (no-op if not found).
+        /// </summary>
+        public void Delete(int id)
         {
-            var room = await _context.Rooms.FindAsync(id);
+            var room = _context.Rooms.Find(id);
             if (room != null)
             {
                 _context.Rooms.Remove(room);
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
             }
         }
     }

@@ -1,11 +1,15 @@
-﻿using SilafHotelManagementSystem.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using SilafHotelManagementSystem.Data;
 using SilafHotelManagementSystem.Models;
 using SilafHotelManagementSystem.Repositories.Interfaces;
-using Microsoft.EntityFrameworkCore;
-
+using System.Collections.Generic;
+using System.Linq;
 
 namespace SilafHotelManagementSystem.Repositories.Implementations
 {
+    /// <summary>
+    /// EF Core repository for Review entities (synchronous).
+    /// </summary>
     public class ReviewRepository : IReviewRepository
     {
         private readonly SilafHotelDbContext _context;
@@ -15,58 +19,92 @@ namespace SilafHotelManagementSystem.Repositories.Implementations
             _context = context;
         }
 
-        public async Task<List<Review>> GetAllAsync()
+        /// <summary>Return all reviews with related Guest and Room (read-only).</summary>
+        public List<Review> GetAll()
         {
-            return await _context.Reviews
-                .Include(r => r.Guest)
-                .Include(r => r.Room)
-                .ToListAsync();
+            return _context.Reviews
+                           .Include(r => r.Guest)
+                           .Include(r => r.Room)
+                           .AsNoTracking()
+                           .ToList();
         }
 
-        public async Task<Review?> GetByIdAsync(int id)
+        /// <summary>Find one review by id including Guest and Room; null if not found.</summary>
+        public Review? GetById(int id)
         {
-            return await _context.Reviews
-                .Include(r => r.Guest)
-                .Include(r => r.Room)
-                .FirstOrDefaultAsync(r => r.ReviewId == id);
+            return _context.Reviews
+                           .Include(r => r.Guest)
+                           .Include(r => r.Room)
+                           .AsNoTracking()
+                           .FirstOrDefault(r => r.ReviewId == id);
         }
 
-        public async Task AddAsync(Review review)
+        /// <summary>Insert a new review and save changes.</summary>
+        public void Add(Review review)
         {
             _context.Reviews.Add(review);
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
         }
 
-        public async Task UpdateAsync(Review review)
+        /// <summary>Update an existing review and save changes.</summary>
+        public void Update(Review review)
         {
             _context.Reviews.Update(review);
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
         }
 
-        public async Task DeleteAsync(int id)
+        /// <summary>Delete a review by id (no-op if not found).</summary>
+        public void Delete(int id)
         {
-            var review = await _context.Reviews.FindAsync(id);
+            var review = _context.Reviews.Find(id);
             if (review != null)
             {
                 _context.Reviews.Remove(review);
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
             }
         }
 
-        public async Task<List<Review>> GetByGuestIdAsync(int guestId)
+        /// <summary>Return all reviews for a given guest id (includes Room).</summary>
+        public List<Review> GetByGuestId(int guestId)
         {
-            return await _context.Reviews
-                .Where(r => r.GuestId == guestId)
-                .Include(r => r.Room)
-                .ToListAsync();
+            return _context.Reviews
+                           .Where(r => r.GuestId == guestId)
+                           .Include(r => r.Room)
+                           .AsNoTracking()
+                           .ToList();
         }
 
-        public async Task<List<Review>> GetByRoomIdAsync(int roomId)
+        /// <summary>Return all reviews for a given room id (includes Guest).</summary>
+        public List<Review> GetByRoomId(int roomId)
         {
-            return await _context.Reviews
-                .Where(r => r.RoomId == roomId)
-                .Include(r => r.Guest)
-                .ToListAsync();
+            return _context.Reviews
+                           .Where(r => r.RoomId == roomId)
+                           .Include(r => r.Guest)
+                           .AsNoTracking()
+                           .ToList();
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
