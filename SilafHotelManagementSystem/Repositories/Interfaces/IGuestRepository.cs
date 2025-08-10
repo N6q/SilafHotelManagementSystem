@@ -1,13 +1,17 @@
 ﻿using SilafHotelManagementSystem.Models;
+using System.Collections.Generic;
 
 namespace SilafHotelManagementSystem.Repositories.Interfaces
 {
+    /// <summary>
+    /// Synchronous repository contract for Guest entities.
+    /// </summary>
     public interface IGuestRepository
     {
-        Task<List<Guest>> GetAllAsync();
-        Task<Guest?> GetByIdAsync(int id);
-        Task AddAsync(Guest guest);
-        Task UpdateAsync(Guest guest);
-        Task DeleteAsync(int id);
+        List<Guest> GetAll();
+        Guest? GetById(int id);
+        void Add(Guest guest);
+        void Update(Guest guest);
+        void Delete(int id);
     }
 }
