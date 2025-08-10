@@ -1,102 +1,198 @@
-﻿
+﻿using Microsoft.EntityFrameworkCore;
+using SilafHotelManagementSystem.Data;
 using SilafHotelManagementSystem.Models;
-using SilafHotelManagementSystem.Repositories.Interfaces;
 using SilafHotelManagementSystem.Services.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace SilafHotelManagementSystem.Services
 {
     public class HotelService : IHotelService
     {
-        private readonly IRoomRepository _roomRepo;
-        private readonly IGuestRepository _guestRepo;
-        private readonly IBookingRepository _bookingRepo;
-        private readonly IReviewRepository _reviewRepo;
-
-        public HotelService(
-            IRoomRepository roomRepo,
-            IGuestRepository guestRepo,
-            IBookingRepository bookingRepo,
-            IReviewRepository reviewRepo)
+        public bool TryAddRoom(Room room, out string message)
         {
-            _roomRepo = roomRepo;
-            _guestRepo = guestRepo;
-            _bookingRepo = bookingRepo;
-            _reviewRepo = reviewRepo;
-        }
-        public async Task AddRoomAsync(Room room)
-        {
-            await _roomRepo.AddAsync(room);
-        }
+            // simple input checks 
+            if (room == null) { message = "Room is null."; return false; }
+            if (room.RoomNumber <= 0) { message = "Room number must be > 0."; return false; }
+            if (room.DailyRate <= 0) { message = "Daily rate must be > 0."; return false; }
 
-        public async Task<List<Room>> GetAllRoomsAsync() => await _roomRepo.GetAllAsync();
-        public async Task<List<Guest>> GetAllGuestsAsync() => await _guestRepo.GetAllAsync();
-        public async Task<List<Booking>> GetAllBookingsAsync() => await _bookingRepo.GetAllAsync();
-        public async Task<List<Review>> GetAllReviewsAsync() => await _reviewRepo.GetAllAsync();
-
-        public async Task ReserveRoomAsync(string guestName, int roomId, int nights)
-        {
-            var room = await _roomRepo.GetByIdAsync(roomId);
-            if (room == null || room.IsReserved)
-                throw new Exception("Room is not available");
-
-            var guest = (await _guestRepo.GetAllAsync()).FirstOrDefault(g => g.Name.ToLower() == guestName.ToLower());
-            if (guest == null)
+            try
             {
-                guest = new Guest { Name = guestName };
-                await _guestRepo.AddAsync(guest);
-            }
-
-            room.IsReserved = true;
-            await _roomRepo.UpdateAsync(room);
-
-            var booking = new Booking
-            {
-                RoomId = room.RoomId,
-                GuestId = guest.GuestId,
-                Nights = nights,
-                BookingDate = DateTime.Now
-            };
-            await _bookingRepo.AddAsync(booking);
-        }
-
-        public async Task CancelBookingAsync(int bookingId)
-        {
-            var booking = await _bookingRepo.GetByIdAsync(bookingId);
-            if (booking == null)
-                throw new Exception("Booking not found");
-
-            var room = await _roomRepo.GetByIdAsync(booking.RoomId);
-            if (room != null)
-            {
-                room.IsReserved = false;
-                await _roomRepo.UpdateAsync(room);
-            }
-
-            await _bookingRepo.DeleteAsync(bookingId);
-        }
-
-        public async Task<Guest?> FindGuestByNameAsync(string name)
-        {
-            var guests = await _guestRepo.GetAllAsync();
-            return guests.FirstOrDefault(g => g.Name.ToLower().Contains(name.ToLower()));
-        }
-
-        public async Task<Guest?> GetHighestPayingGuestAsync()
-        {
-            var bookings = await _bookingRepo.GetAllAsync();
-
-            var guestPayments = bookings
-                .GroupBy(b => b.Guest)
-                .Select(g => new
+                using (var context = new SilafHotelDbContext())
                 {
-                    Guest = g.Key,
-                    Total = g.Sum(b => b.Nights * b.Room.DailyRate)
-                })
-                .OrderByDescending(g => g.Total)
-                .FirstOrDefault();
+                    if (context.Rooms.Any(r => r.RoomNumber == room.RoomNumber))
+                    {
+                        message = "Room number already exists.";
+                        return false;
+                    }
 
-            return guestPayments?.Guest;
+                    context.Rooms.Add(room);
+                    context.SaveChanges();
+                    message = "Room added.";
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                message = "Database error: " + ex.Message;
+                return false;
+            }
+        }
+
+        public List<Room> GetAllRooms()
+        {
+            try
+            {
+                using (var context = new SilafHotelDbContext())
+                {
+                    return context.Rooms.AsNoTracking().ToList();
+                }
+            }
+            catch
+            {
+                return new List<Room>();
+            }
+        }
+
+        public bool TryReserveRoom(string guestName, int roomId, int nights, out string message)
+        {
+            if (string.IsNullOrWhiteSpace(guestName)) { message = "Guest name required."; return false; }
+            if (roomId <= 0) { message = "Invalid room id."; return false; }
+            if (nights <= 0) { message = "Nights must be > 0."; return false; }
+
+            try
+            {
+                using (var context = new SilafHotelDbContext())
+                {
+                    var room = context.Rooms.SingleOrDefault(r => r.RoomId == roomId);
+                    if (room == null) { message = "Room not found."; return false; }
+                    if (room.IsReserved) { message = "Room already reserved."; return false; }
+
+                    string norm = guestName.Trim().ToLower();
+                    var guest = context.Guests.FirstOrDefault(g => g.Name != null && g.Name.ToLower() == norm);
+                    if (guest == null)
+                    {
+                        guest = new Guest { Name = guestName.Trim() };
+                        context.Guests.Add(guest);
+                        context.SaveChanges(); // ensure GuestId
+                    }
+
+                    context.Bookings.Add(new Booking
+                    {
+                        GuestId = guest.GuestId,
+                        RoomId = room.RoomId,
+                        Nights = nights,
+                        BookingDate = DateTime.Now
+                    });
+
+                    room.IsReserved = true;
+                    context.SaveChanges();
+
+                    message = "Reservation completed.";
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                message = "Database error: " + ex.Message;
+                return false;
+            }
+        }
+
+        public List<Booking> GetAllBookings()
+        {
+            try
+            {
+                using (var context = new SilafHotelDbContext())
+                {
+                    return context.Bookings
+                                  .Include(b => b.Guest)
+                                  .Include(b => b.Room)
+                                  .AsNoTracking()
+                                  .ToList();
+                }
+            }
+            catch
+            {
+                return new List<Booking>();
+            }
+        }
+
+        public bool TryCancelBooking(int bookingId, out string message)
+        {
+            if (bookingId <= 0) { message = "Invalid booking id."; return false; }
+
+            try
+            {
+                using (var context = new SilafHotelDbContext())
+                {
+                    var booking = context.Bookings.SingleOrDefault(b => b.BookingId == bookingId);
+                    if (booking == null) { message = "Booking not found."; return false; }
+
+                    var room = context.Rooms.SingleOrDefault(r => r.RoomId == booking.RoomId);
+                    if (room != null) room.IsReserved = false;
+
+                    context.Bookings.Remove(booking);
+                    context.SaveChanges();
+
+                    message = "Booking cancelled.";
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                message = "Database error: " + ex.Message;
+                return false;
+            }
+        }
+
+        public Guest? FindGuestByName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+
+            try
+            {
+                using (var context = new SilafHotelDbContext())
+                {
+                    string needle = name.Trim().ToLower();
+                    return context.Guests
+                                  .AsNoTracking()
+                                  .FirstOrDefault(g => g.Name != null && g.Name.ToLower().Contains(needle));
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public Guest? GetHighestPayingGuest()
+        {
+            try
+            {
+                using (var context = new SilafHotelDbContext())
+                {
+                    var top = context.Bookings
+                                     .Include(b => b.Room)
+                                     .GroupBy(b => b.GuestId)
+                                     .Select(g => new
+                                     {
+                                         GuestId = g.Key,
+                                         Total = g.Sum(b => (b.Room != null ? b.Room.DailyRate : 0) * b.Nights)
+                                     })
+                                     .OrderByDescending(x => x.Total)
+                                     .FirstOrDefault();
+
+                    if (top == null || top.Total <= 0) return null;
+
+                    return context.Guests.AsNoTracking().FirstOrDefault(g => g.GuestId == top.GuestId);
+                }
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }
-

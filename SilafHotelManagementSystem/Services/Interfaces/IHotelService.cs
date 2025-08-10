@@ -1,18 +1,19 @@
 ﻿using SilafHotelManagementSystem.Models;
+using System.Collections.Generic;
 
 namespace SilafHotelManagementSystem.Services.Interfaces
 {
     public interface IHotelService
     {
-        Task AddRoomAsync(Room room);
-        Task<List<Room>> GetAllRoomsAsync();
-        Task<List<Guest>> GetAllGuestsAsync();
-        Task<List<Booking>> GetAllBookingsAsync();
-        Task<List<Review>> GetAllReviewsAsync();
+        bool TryAddRoom(Room room, out string message);
+        List<Room> GetAllRooms();
 
-        Task ReserveRoomAsync(string guestName, int roomId, int nights);
-        Task CancelBookingAsync(int bookingId);
-        Task<Guest?> FindGuestByNameAsync(string name);
-        Task<Guest?> GetHighestPayingGuestAsync();
+        bool TryReserveRoom(string guestName, int roomId, int nights, out string message);
+        List<Booking> GetAllBookings();
+
+        bool TryCancelBooking(int bookingId, out string message);
+
+        Guest? FindGuestByName(string name);
+        Guest? GetHighestPayingGuest();
     }
 }
