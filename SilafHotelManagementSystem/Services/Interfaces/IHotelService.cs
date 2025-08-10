@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace SilafHotelManagementSystem.Services.Interfaces
 {
+    /// <summary>
+    /// Synchronous service API the menu calls.
+    /// </summary>
     public interface IHotelService
     {
         bool TryAddRoom(Room room, out string message);
