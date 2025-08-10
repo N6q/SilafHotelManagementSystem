@@ -20,7 +20,7 @@ namespace SilafHotelManagementSystem.Services
         private readonly IReviewRepository _reviews;
 
         /// <summary>
-        /// Construct the service with repositories (REQUIRED to match Program.cs).
+        /// Construct the service with repositories 
         /// </summary>
         public HotelService(
             IRoomRepository rooms,
